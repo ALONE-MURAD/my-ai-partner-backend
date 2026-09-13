@@ -101,7 +101,6 @@ Technical problems should be handled by the application.
 `
     },
 
-
     BF: {
         name: "BF",
         voice: "Kore",
@@ -399,6 +398,7 @@ wss.on(
             request?.url || "/live"
         );
 
+
         let session = null;
 
         let selectedPartner = "GF";
@@ -409,19 +409,19 @@ wss.on(
 
         let setupSent = false;
 
+
         /*
-         * Audio may arrive before Gemini session
-         * finishes connecting.
-         *
-         * Keep a small temporary buffer.
+         * Microphone audio can arrive before
+         * Gemini Live finishes connecting.
          */
+
         const pendingAudio = [];
 
-        const MAX_PENDING_AUDIO = 80;
+        const MAX_PENDING_AUDIO = 100;
 
 
         /* =====================================================
-           SEND SAFE JSON
+           SAFE SEND TO ANDROID
            ===================================================== */
 
         function sendToAndroid(data) {
@@ -435,9 +435,11 @@ wss.on(
 
             try {
 
-                return androidSocket.send(
+                androidSocket.send(
                     JSON.stringify(data)
                 );
+
+                return true;
 
             } catch (error) {
 
@@ -452,7 +454,7 @@ wss.on(
 
 
         /* =====================================================
-           SETUP COMPLETE
+           SEND SETUP COMPLETE
            ===================================================== */
 
         function sendSetupComplete() {
@@ -466,23 +468,43 @@ wss.on(
 
             setupSent = true;
 
+            const partner =
+                getPartner(
+                    selectedPartner
+                );
+
             console.log(
                 "Sending setupComplete to Android:",
                 selectedPartner
             );
+
+            /*
+             * IMPORTANT:
+             *
+             * We send BOTH:
+             *
+             * type: setupComplete
+             *
+             * and:
+             *
+             * setupComplete: true
+             *
+             * so Android can recognise it.
+             */
 
             sendToAndroid({
 
                 type:
                     "setupComplete",
 
+                setupComplete:
+                    true,
+
                 partner:
                     selectedPartner,
 
                 voice:
-                    getPartner(
-                        selectedPartner
-                    ).voice
+                    partner.voice
             });
         }
 
@@ -581,13 +603,10 @@ wss.on(
 
 
             /*
-             * IMPORTANT:
-             *
-             * Tell Android that the call is ready
-             * BEFORE waiting for the Gemini connection.
-             *
-             * Android can start sending microphone audio.
+             * Tell Android immediately that
+             * microphone can start.
              */
+
             sendSetupComplete();
 
 
@@ -605,6 +624,10 @@ wss.on(
 
                         callbacks: {
 
+                            /* ---------------------------------
+                               GEMINI CONNECTED
+                               --------------------------------- */
+
                             onopen: () => {
 
                                 console.log(
@@ -614,6 +637,10 @@ wss.on(
                                 flushPendingAudio();
                             },
 
+
+                            /* ---------------------------------
+                               GEMINI MESSAGE
+                               --------------------------------- */
 
                             onmessage:
                                 (message) => {
@@ -639,11 +666,9 @@ wss.on(
                                         }
 
 
-                                        /*
-                                         * ---------------------------------
-                                         * AI AUDIO
-                                         * ---------------------------------
-                                         */
+                                        /* =========================
+                                           AI AUDIO
+                                           ========================= */
 
                                         if (
                                             content.modelTurn &&
@@ -662,6 +687,10 @@ wss.on(
                                                     part.inlineData.data
                                                 ) {
 
+                                                    console.log(
+                                                        "AI audio received"
+                                                    );
+
                                                     sendToAndroid({
 
                                                         type:
@@ -679,11 +708,9 @@ wss.on(
                                         }
 
 
-                                        /*
-                                         * ---------------------------------
-                                         * INPUT TRANSCRIPTION
-                                         * ---------------------------------
-                                         */
+                                        /* =========================
+                                           USER TRANSCRIPTION
+                                           ========================= */
 
                                         if (
                                             content.inputTranscription
@@ -703,11 +730,9 @@ wss.on(
                                         }
 
 
-                                        /*
-                                         * ---------------------------------
-                                         * OUTPUT TRANSCRIPTION
-                                         * ---------------------------------
-                                         */
+                                        /* =========================
+                                           AI TRANSCRIPTION
+                                           ========================= */
 
                                         if (
                                             content.outputTranscription
@@ -727,15 +752,17 @@ wss.on(
                                         }
 
 
-                                        /*
-                                         * ---------------------------------
-                                         * TURN COMPLETE
-                                         * ---------------------------------
-                                         */
+                                        /* =========================
+                                           TURN COMPLETE
+                                           ========================= */
 
                                         if (
                                             content.turnComplete
                                         ) {
+
+                                            console.log(
+                                                "Gemini turn complete"
+                                            );
 
                                             sendToAndroid({
 
@@ -754,6 +781,10 @@ wss.on(
                                 },
 
 
+                            /* ---------------------------------
+                               GEMINI ERROR
+                               --------------------------------- */
+
                             onerror:
                                 (error) => {
 
@@ -768,10 +799,15 @@ wss.on(
                                             "liveError",
 
                                         error:
+                                            error?.message ||
                                             "Live connection error"
                                     });
                                 },
 
+
+                            /* ---------------------------------
+                               GEMINI CLOSED
+                               --------------------------------- */
 
                             onclose:
                                 (event) => {
@@ -782,9 +818,7 @@ wss.on(
                                         "closed"
                                     );
 
-                                    if (
-                                        !closed
-                                    ) {
+                                    if (!closed) {
 
                                         sendToAndroid({
 
@@ -795,6 +829,10 @@ wss.on(
                                 }
                         },
 
+
+                        /* =================================================
+                           GEMINI LIVE CONFIG
+                           ================================================= */
 
                         config: {
 
@@ -883,9 +921,10 @@ wss.on(
                     "Android message received:",
                     rawText.substring(
                         0,
-                        200
+                        250
                     )
                 );
+
 
                 try {
 
@@ -895,9 +934,9 @@ wss.on(
                         );
 
 
-                    /* ---------------------------------------------
-                       PARTNER
-                       --------------------------------------------- */
+                    /* =========================================
+                       PARTNER SELECTION
+                       ========================================= */
 
                     if (
                         message.partner
@@ -915,9 +954,6 @@ wss.on(
                                 selectedPartner
                             );
 
-                            /*
-                             * Start immediately.
-                             */
                             await startLiveSession();
 
                         } else {
@@ -931,9 +967,9 @@ wss.on(
                     }
 
 
-                    /* ---------------------------------------------
+                    /* =========================================
                        OLD SETUP
-                       --------------------------------------------- */
+                       ========================================= */
 
                     if (
                         message.setup
@@ -949,16 +985,15 @@ wss.on(
                             );
 
                             await startLiveSession();
-
                         }
 
                         return;
                     }
 
 
-                    /* ---------------------------------------------
-                       REALTIME AUDIO
-                       --------------------------------------------- */
+                    /* =========================================
+                       REALTIME MICROPHONE AUDIO
+                       ========================================= */
 
                     if (
                         message.realtimeInput &&
@@ -971,6 +1006,13 @@ wss.on(
                             message
                                 .realtimeInput
                                 .mediaChunks;
+
+
+                        console.log(
+                            "Realtime audio received:",
+                            chunks.length,
+                            "chunks"
+                        );
 
 
                         for (
@@ -986,9 +1028,9 @@ wss.on(
                             }
 
 
-                            /*
-                             * Gemini session ready.
-                             */
+                            /* =============================
+                               GEMINI READY
+                               ============================= */
 
                             if (session) {
 
@@ -1015,12 +1057,12 @@ wss.on(
                                     );
                                 }
 
+
                             } else {
 
-                                /*
-                                 * Gemini not ready yet.
-                                 * Temporarily buffer the audio.
-                                 */
+                                /* =============================
+                                   GEMINI NOT READY
+                                   ============================= */
 
                                 if (
                                     pendingAudio.length <
@@ -1037,6 +1079,23 @@ wss.on(
                                             "audio/pcm;rate=16000"
                                     });
 
+                                } else {
+
+                                    /*
+                                     * Prevent unlimited memory use.
+                                     */
+
+                                    pendingAudio.shift();
+
+                                    pendingAudio.push({
+
+                                        data:
+                                            chunk.data,
+
+                                        mimeType:
+                                            chunk.mimeType ||
+                                            "audio/pcm;rate=16000"
+                                    });
                                 }
                             }
                         }
@@ -1045,15 +1104,19 @@ wss.on(
                     }
 
 
-                    /* ---------------------------------------------
+                    /* =========================================
                        TEXT INPUT
-                       --------------------------------------------- */
+                       ========================================= */
 
                     if (
                         typeof message.text ===
                         "string" &&
                         message.text.trim()
                     ) {
+
+                        console.log(
+                            "Text input received"
+                        );
 
                         if (session) {
 
@@ -1100,7 +1163,7 @@ wss.on(
 
 
         /* =====================================================
-           ANDROID CLOSE
+           ANDROID DISCONNECTED
            ===================================================== */
 
         androidSocket.on(
