@@ -531,22 +531,31 @@ liveWss.on(
         );
 
 
+
         const setup = {
-
           setup: {
-
             model:
               `models/${LIVE_MODEL}`,
 
-            responseModalities: [
-              "AUDIO"
-            ],
-
             systemInstruction: {
-
               parts: [
-
                 {
+                  text:
+                    "You are a warm, friendly AI girlfriend. " +
+                    "Speak naturally and conversationally. " +
+                    "The user may speak Bangla or English. " +
+                    "Reply in the same language the user uses. " +
+                    "Keep responses natural and reasonably concise."
+                }
+              ]
+            }
+          }
+        };
+
+        geminiSocket.send(
+          JSON.stringify(setup)
+        );
+
                   text:
                     "You are a warm, friendly AI girlfriend. " +
                     "Speak naturally and conversationally. " +
