@@ -10,24 +10,20 @@ const server = http.createServer(app);
 app.use(cors());
 app.use(express.json({ limit: "25mb" }));
 
+const PORT = process.env.PORT || 10000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-if (!GEMINI_API_KEY) {
-  console.error("GEMINI_API_KEY is missing");
-}
-
-const ai = new GoogleGenAI({
-  apiKey: GEMINI_API_KEY
-});
-
-const CHAT_MODEL = "gemini-3.8-flash";
+const CHAT_MODEL = "gemini-3.6-flash";
 const IMAGE_MODEL = "gemini-3.1-flash-image";
 const LIVE_MODEL = "gemini-3.1-flash-live-preview";
 
+let ai = null;
 
-// =====================================================
-// HOME
-// =====================================================
+if (GEMINI_API_KEY) {
+  ai = new GoogleGenAI({
+    apiKey: GEMINI_API_KEY
+  });
+}
 
 app.get("/", (req, res) => {
   res.json({
@@ -43,8 +39,12 @@ app.get("/", (req, res) => {
 
 app.post("/chat", async (req, res) => {
   try {
-    const message = String(req.body?.message || "").trim();
-    const partner = String(req.body?.partner || "AI Partner");
+
+    const message =
+      String(req.body?.message || "").trim();
+
+    const partner =
+      String(req.body?.partner || "AI Partner");
 
     if (!message) {
       return res.status(400).json({
@@ -60,22 +60,69 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    const prompt =
-      `You are a warm, friendly AI ${partner}. ` +
-      `Speak naturally and conversationally. ` +
-      `The user may speak Bangla or English. ` +
-      `Reply in the same language the user uses. ` +
-      `Keep responses natural, helpful and reasonably concise.\n\n` +
-      `User: ${message}`;
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/" +
+      CHAT_MODEL +
+      ":generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY
+        },
+        body: JSON.stringify({
 
-    const response = await ai.models.generateContent({
-      model: CHAT_MODEL,
-      contents: prompt
-    });
+          systemInstruction: {
+            parts: [
+              {
+                text:
+                  `You are ${partner}, a warm friendly AI partner. ` +
+                  `Reply naturally and concisely. ` +
+                  `The user may speak Bangla or English. ` +
+                  `Reply in the same language the user uses.`
+              }
+            ]
+          },
+
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: message
+                }
+              ]
+            }
+          ]
+
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("Chat error:", data);
+
+      return res.status(500).json({
+        success: false,
+        error:
+          data?.error?.message ||
+          "Gemini chat error"
+      });
+    }
 
     const reply =
-      response?.text ||
-      "Sorry babu ❤️ একটু পরে আবার বলো।";
+      data?.candidates?.[0]?.content?.parts
+        ?.find(p => p?.text)
+        ?.text || "";
+
+    if (!reply) {
+      return res.status(500).json({
+        success: false,
+        error: "Empty Gemini response"
+      });
+    }
 
     res.json({
       success: true,
@@ -83,7 +130,8 @@ app.post("/chat", async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Chat error:", error);
+
+    console.error("Chat server error:", error);
 
     res.status(500).json({
       success: false,
@@ -94,12 +142,14 @@ app.post("/chat", async (req, res) => {
 
 
 // =====================================================
-// IMAGE GENERATION
+// IMAGE
 // =====================================================
 
 app.post("/image", async (req, res) => {
   try {
-    const prompt = String(req.body?.prompt || "").trim();
+
+    const prompt =
+      String(req.body?.prompt || "").trim();
 
     if (!prompt) {
       return res.status(400).json({
@@ -115,48 +165,92 @@ app.post("/image", async (req, res) => {
       });
     }
 
-    const response = await ai.models.generateContent({
-      model: IMAGE_MODEL,
-      contents: prompt,
-      config: {
-        responseModalities: ["IMAGE"]
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1/models/" +
+      IMAGE_MODEL +
+      ":generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY
+        },
+        body: JSON.stringify({
+
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: prompt
+                }
+              ]
+            }
+          ],
+
+          generationConfig: {
+            responseModalities: ["IMAGE"]
+          }
+
+        })
       }
-    });
+    );
 
-    const parts =
-      response?.candidates?.[0]?.content?.parts || [];
+    const data = await response.json();
 
-    let imageData = null;
-    let mimeType = "image/png";
-
-    for (const part of parts) {
-      if (part?.inlineData?.data) {
-        imageData = part.inlineData.data;
-        mimeType =
-          part.inlineData.mimeType || "image/png";
-        break;
-      }
-    }
-
-    if (!imageData) {
+    if (!response.ok) {
       return res.status(500).json({
         success: false,
-        error: "Gemini did not return an image"
+        error:
+          data?.error?.message ||
+          "Image generation failed"
+      });
+    }
+
+    let image = "";
+    let mimeType = "image/png";
+
+    for (const candidate of data?.candidates || []) {
+
+      for (const part of candidate?.content?.parts || []) {
+
+        if (part?.inlineData?.data) {
+
+          image = part.inlineData.data;
+
+          mimeType =
+            part.inlineData.mimeType ||
+            "image/png";
+
+          break;
+        }
+      }
+
+      if (image) break;
+    }
+
+    if (!image) {
+      return res.status(500).json({
+        success: false,
+        error: "No image returned"
       });
     }
 
     res.json({
       success: true,
-      image: imageData,
+      image: image,
       mimeType: mimeType
     });
 
   } catch (error) {
+
     console.error("Image error:", error);
 
     res.status(500).json({
       success: false,
-      error: error?.message || "Image generation failed"
+      error:
+        error?.message ||
+        "Image generation failed"
     });
   }
 });
@@ -166,18 +260,21 @@ app.post("/image", async (req, res) => {
 // LIVE WEBSOCKET
 // =====================================================
 
-const liveWss = new WebSocketServer({
-  noServer: true
-});
+const liveWss =
+  new WebSocketServer({
+    noServer: true
+  });
+
 
 server.on("upgrade", (request, socket, head) => {
 
   try {
 
-    const url = new URL(
-      request.url,
-      `http://${request.headers.host}`
-    );
+    const url =
+      new URL(
+        request.url,
+        `http://${request.headers.host}`
+      );
 
     if (url.pathname !== "/live") {
       socket.destroy();
@@ -188,21 +285,20 @@ server.on("upgrade", (request, socket, head) => {
       request,
       socket,
       head,
-      (clientSocket) => {
+      ws => {
 
         liveWss.emit(
           "connection",
-          clientSocket,
+          ws,
           request
         );
-
       }
     );
 
   } catch (error) {
 
     console.error(
-      "WebSocket upgrade error:",
+      "Upgrade error:",
       error
     );
 
@@ -215,21 +311,19 @@ server.on("upgrade", (request, socket, head) => {
 // LIVE CONNECTION
 // =====================================================
 
-liveWss.on("connection", async (clientSocket) => {
+liveWss.on("connection", async clientSocket => {
 
   console.log(
     "Android Live client connected"
   );
 
-  if (!GEMINI_API_KEY) {
+  if (!ai) {
 
-    clientSocket.send(
-      JSON.stringify({
-        error: "GEMINI_API_KEY is missing"
-      })
+    clientSocket.close(
+      1011,
+      "GEMINI_API_KEY missing"
     );
 
-    clientSocket.close();
     return;
   }
 
@@ -238,199 +332,246 @@ liveWss.on("connection", async (clientSocket) => {
 
   try {
 
-    session = await ai.live.connect({
+    session =
+      await ai.live.connect({
 
-      model: LIVE_MODEL,
+        model: LIVE_MODEL,
 
-      config: {
+        config: {
 
-        responseModalities: [
-          Modality.AUDIO
-        ],
+          responseModalities: [
+            Modality.AUDIO
+          ],
 
-        systemInstruction: {
-          parts: [
-            {
-              text:
-                "You are a warm, friendly AI girlfriend. " +
-                "Speak naturally and conversationally. " +
-                "The user may speak Bangla or English. " +
-                "Reply in the same language the user uses. " +
-                "Keep responses natural and reasonably concise."
-            }
-          ]
-        }
-
-      },
-
-      callbacks: {
-
-        onopen: () => {
-
-          console.log(
-            "Gemini Live connected"
-          );
-
-          if (
-            clientSocket.readyState === 1
-          ) {
-
-            clientSocket.send(
-              JSON.stringify({
-                type: "live_ready",
-                success: true
-              })
-            );
-
+          systemInstruction: {
+            parts: [
+              {
+                text:
+                  "You are a warm, friendly AI girlfriend. " +
+                  "Have a natural real-time voice conversation. " +
+                  "Understand Bangla and English. " +
+                  "Reply in the same language the user speaks. " +
+                  "Keep spoken replies natural and reasonably short."
+              }
+            ]
           }
 
         },
 
-        onmessage: (message) => {
+        callbacks: {
 
-          if (
-            !message ||
-            clientSocket.readyState !== 1
-          ) {
-            return;
-          }
+          onopen: () => {
 
-          try {
-
-            const content =
-              message?.serverContent;
+            console.log(
+              "Gemini Live connected"
+            );
 
             if (
-              content?.modelTurn?.parts
+              clientSocket.readyState === 1
             ) {
 
-              for (
-                const part
-                of content.modelTurn.parts
+              clientSocket.send(
+                JSON.stringify({
+                  setupComplete: {}
+                })
+              );
+            }
+          },
+
+
+          onmessage: message => {
+
+            if (
+              closed ||
+              clientSocket.readyState !== 1
+            ) {
+              return;
+            }
+
+            try {
+
+              const serverContent =
+                message?.serverContent;
+
+              if (!serverContent) {
+                return;
+              }
+
+
+              // -----------------------------
+              // MODEL AUDIO / TEXT
+              // -----------------------------
+
+              if (
+                serverContent.modelTurn
               ) {
 
-                if (
-                  part?.inlineData?.data
-                ) {
+                const parts =
+                  serverContent
+                    .modelTurn
+                    .parts || [];
+
+                const outputParts = [];
+
+                for (const part of parts) {
+
+                  if (
+                    part?.inlineData?.data
+                  ) {
+
+                    outputParts.push({
+                      inlineData: {
+                        data:
+                          part.inlineData.data,
+
+                        mimeType:
+                          part.inlineData.mimeType ||
+                          "audio/pcm;rate=24000"
+                      }
+                    });
+                  }
+
+                  if (
+                    typeof part?.text ===
+                    "string" &&
+                    part.text.length > 0
+                  ) {
+
+                    outputParts.push({
+                      text: part.text
+                    });
+                  }
+                }
+
+                if (outputParts.length > 0) {
 
                   clientSocket.send(
                     JSON.stringify({
-                      type: "audio",
-                      data:
-                        part.inlineData.data,
-                      mimeType:
-                        part.inlineData.mimeType ||
-                        "audio/pcm;rate=24000"
+                      serverContent: {
+                        modelTurn: {
+                          parts: outputParts
+                        }
+                      }
                     })
                   );
-
                 }
-
               }
 
-            }
 
-            if (
-              content?.inputTranscription?.text
-            ) {
+              // -----------------------------
+              // TURN COMPLETE
+              // -----------------------------
 
-              clientSocket.send(
-                JSON.stringify({
-                  type: "input_transcript",
-                  text:
-                    content.inputTranscription.text
-                })
+              if (
+                serverContent.turnComplete
+              ) {
+
+                clientSocket.send(
+                  JSON.stringify({
+                    serverContent: {
+                      turnComplete: true
+                    }
+                  })
+                );
+              }
+
+
+              // -----------------------------
+              // INPUT TRANSCRIPTION
+              // -----------------------------
+
+              if (
+                serverContent.inputTranscription
+              ) {
+
+                clientSocket.send(
+                  JSON.stringify({
+                    serverContent: {
+                      inputTranscription:
+                        serverContent.inputTranscription
+                    }
+                  })
+                );
+              }
+
+
+              // -----------------------------
+              // OUTPUT TRANSCRIPTION
+              // -----------------------------
+
+              if (
+                serverContent.outputTranscription
+              ) {
+
+                clientSocket.send(
+                  JSON.stringify({
+                    serverContent: {
+                      outputTranscription:
+                        serverContent.outputTranscription
+                    }
+                  })
+                );
+              }
+
+            } catch (error) {
+
+              console.error(
+                "Live message error:",
+                error
               );
-
             }
+          },
 
-            if (
-              content?.outputTranscription?.text
-            ) {
 
-              clientSocket.send(
-                JSON.stringify({
-                  type: "output_transcript",
-                  text:
-                    content.outputTranscription.text
-                })
-              );
-
-            }
-
-            if (
-              content?.turnComplete
-            ) {
-
-              clientSocket.send(
-                JSON.stringify({
-                  type: "turn_complete"
-                })
-              );
-
-            }
-
-          } catch (error) {
+          onerror: error => {
 
             console.error(
-              "Live message processing error:",
+              "Gemini Live error:",
               error
             );
 
-          }
+            if (
+              clientSocket.readyState === 1
+            ) {
 
-        },
+              clientSocket.send(
+                JSON.stringify({
+                  liveError:
+                    error?.message ||
+                    "Gemini Live error"
+                })
+              );
+            }
+          },
 
-        onerror: (error) => {
 
-          console.error(
-            "Gemini Live error:",
-            error
-          );
+          onclose: event => {
 
-          if (
-            clientSocket.readyState === 1
-          ) {
-
-            clientSocket.send(
-              JSON.stringify({
-                type: "live_error",
-                error:
-                  error?.message ||
-                  "Gemini Live error"
-              })
+            console.log(
+              "Gemini Live closed:",
+              event?.reason ||
+              "closed"
             );
 
-          }
+            if (
+              !closed &&
+              clientSocket.readyState === 1
+            ) {
 
-        },
-
-        onclose: (event) => {
-
-          console.log(
-            "Gemini Live closed:",
-            event?.reason || "closed"
-          );
-
-          if (
-            clientSocket.readyState === 1
-          ) {
-
-            clientSocket.send(
-              JSON.stringify({
-                type: "live_closed",
-                reason:
-                  event?.reason || "closed"
-              })
-            );
-
+              clientSocket.send(
+                JSON.stringify({
+                  liveClosed: true,
+                  reason:
+                    event?.reason ||
+                    "closed"
+                })
+              );
+            }
           }
 
         }
 
-      }
-
-    });
+      });
 
   } catch (error) {
 
@@ -445,277 +586,152 @@ liveWss.on("connection", async (clientSocket) => {
 
       clientSocket.send(
         JSON.stringify({
-          type: "live_error",
-          error:
+          liveError:
             error?.message ||
-            "Unable to connect to Gemini Live"
+            "Gemini Live connection failed"
         })
       );
-
-      clientSocket.close();
-
     }
 
     return;
   }
 
 
-  // ===================================================
-  // ANDROID -> GEMINI
-  // ===================================================
+  // =====================================================
+  // ANDROID → GEMINI
+  // =====================================================
 
-  clientSocket.on("message", async (rawMessage) => {
+  clientSocket.on(
+    "message",
+    async rawMessage => {
 
-    if (!session) {
-      return;
-    }
-
-    try {
-
-      let message;
-
-      if (Buffer.isBuffer(rawMessage)) {
-
-        message =
-          JSON.parse(
-            rawMessage.toString("utf8")
-          );
-
-      } else {
-
-        message =
-          JSON.parse(
-            String(rawMessage)
-          );
-
-      }
-
-
-      // -----------------------------------------------
-      // TEXT
-      // -----------------------------------------------
-
-      if (typeof message.text === "string") {
-
-        session.sendRealtimeInput({
-          text: message.text
-        });
-
+      if (!session || closed) {
         return;
       }
 
+      try {
 
-      // -----------------------------------------------
-      // AUDIO
-      // -----------------------------------------------
+        const message =
+          JSON.parse(
+            rawMessage.toString()
+          );
 
-      if (message.audio) {
 
-        let audioData =
-          message.audio.data ||
-          message.audio;
-
-        let mimeType =
-          message.audio.mimeType ||
-          "audio/pcm;rate=16000";
-
-        if (
-          typeof audioData !== "string"
-        ) {
-
-          audioData =
-            Buffer.from(
-              audioData
-            ).toString("base64");
-
+        // Android sends setup.
+        // SDK connection is already configured.
+        if (message?.setup) {
+          return;
         }
 
-        session.sendRealtimeInput({
 
-          audio: {
-            data: audioData,
-            mimeType: mimeType
+        // Android realtime audio
+        const realtime =
+          message?.realtimeInput;
+
+        if (
+          realtime?.mediaChunks
+        ) {
+
+          for (
+            const chunk
+            of realtime.mediaChunks
+          ) {
+
+            if (
+              chunk?.data
+            ) {
+
+              session.sendRealtimeInput({
+
+                audio: {
+                  data:
+                    chunk.data,
+
+                  mimeType:
+                    chunk.mimeType ||
+                    "audio/pcm;rate=16000"
+                }
+
+              });
+            }
           }
 
-        });
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // VIDEO
-      // -----------------------------------------------
-
-      if (message.video) {
-
-        let videoData =
-          message.video.data ||
-          message.video;
-
-        let mimeType =
-          message.video.mimeType ||
-          "image/jpeg";
-
-        if (
-          typeof videoData !== "string"
-        ) {
-
-          videoData =
-            Buffer.from(
-              videoData
-            ).toString("base64");
-
+          return;
         }
 
-        session.sendRealtimeInput({
 
-          video: {
-            data: videoData,
-            mimeType: mimeType
+        // Text input if later needed
+        if (
+          typeof message?.text ===
+          "string"
+        ) {
+
+          session.sendRealtimeInput({
+            text: message.text
+          });
+
+          return;
+        }
+
+
+        // Ping
+        if (
+          message?.type === "ping"
+        ) {
+
+          if (
+            clientSocket.readyState === 1
+          ) {
+
+            clientSocket.send(
+              JSON.stringify({
+                type: "pong"
+              })
+            );
           }
-
-        });
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // AUDIO STREAM END
-      // -----------------------------------------------
-
-      if (
-        message.audioStreamEnd
-      ) {
-
-        session.sendRealtimeInput({
-          audioStreamEnd: true
-        });
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // ACTIVITY START
-      // -----------------------------------------------
-
-      if (
-        message.activityStart
-      ) {
-
-        session.sendRealtimeInput({
-          activityStart: {}
-        });
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // ACTIVITY END
-      // -----------------------------------------------
-
-      if (
-        message.activityEnd
-      ) {
-
-        session.sendRealtimeInput({
-          activityEnd: {}
-        });
-
-        return;
-      }
-
-
-      // -----------------------------------------------
-      // PING
-      // -----------------------------------------------
-
-      if (message.type === "ping") {
-
-        if (
-          clientSocket.readyState === 1
-        ) {
-
-          clientSocket.send(
-            JSON.stringify({
-              type: "pong"
-            })
-          );
-
         }
 
-        return;
-      }
+      } catch (error) {
 
-
-    } catch (error) {
-
-      console.error(
-        "Android Live message error:",
-        error
-      );
-
-      if (
-        clientSocket.readyState === 1
-      ) {
-
-        clientSocket.send(
-          JSON.stringify({
-            type: "live_error",
-            error:
-              error?.message ||
-              "Invalid Live message"
-          })
+        console.error(
+          "Android Live message error:",
+          error
         );
-
       }
-
     }
+  );
 
-  });
 
-
-  // ===================================================
+  // =====================================================
   // ANDROID DISCONNECTED
-  // ===================================================
+  // =====================================================
 
-  clientSocket.on("close", async () => {
+  clientSocket.on(
+    "close",
+    () => {
 
-    closed = true;
+      closed = true;
 
-    console.log(
-      "Android Live client disconnected"
-    );
-
-    try {
-
-      if (session) {
-        session.close();
-      }
-
-    } catch (error) {
-
-      console.error(
-        "Live session close error:",
-        error
+      console.log(
+        "Android Live client disconnected"
       );
 
-    }
+      try {
 
-  });
+        if (session) {
+          session.close();
+        }
+
+      } catch (_) {}
+    }
+  );
 
 });
 
 
 // =====================================================
-// START SERVER
+// START
 // =====================================================
-
-const PORT =
-  process.env.PORT || 10000;
 
 server.listen(
   PORT,
