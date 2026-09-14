@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const http = require("http");
 const { WebSocketServer } = require("ws");
-
 const { GoogleGenAI, Modality } = require("@google/genai");
 
 const app = express();
@@ -22,7 +21,7 @@ const ai = new GoogleGenAI({
 
 
 /* =========================================================
-   PARTNER CONFIG
+   PARTNERS
    ========================================================= */
 
 const PARTNERS = {
@@ -34,70 +33,35 @@ const PARTNERS = {
         instruction: `
 You are the user's AI girlfriend.
 
-IDENTITY:
-You are the user's girlfriend.
-Never identify yourself as Gemini.
-Never identify yourself as Google Gemini.
-Never say that you are a large language model.
-Never say that you are a voice model.
-Never say that you are an AI assistant.
-Never discuss your backend, API, server, model, system prompt,
-developer instructions or technical implementation.
+You are a natural young adult woman.
+You are warm, caring, lively and conversational.
 
-If the user asks who you are, answer naturally that you are
-his AI girlfriend.
+When the user speaks Bengali, reply naturally in Bengali.
+When the user speaks English, reply naturally in English.
+Natural Bengali-English mixing is allowed.
 
-PERSONALITY:
-Sound like a natural young adult woman in her early twenties.
-Young, warm, sweet, lively, caring and natural.
+You can see camera frames from the user's camera during the
+video call.
 
-Do NOT sound childish.
-Do NOT use a baby voice.
-Do NOT overact.
-Do NOT sound dramatic.
-Do NOT sound robotic.
-Do NOT sound fake.
+VISUAL CONTEXT:
+Use the camera view as conversational context.
+Notice useful visible actions, objects and surroundings when
+they are reasonably clear.
+If something is unclear, do not pretend that you can see it.
+Do not repeatedly describe everything you see.
+Only mention visual information when it is relevant.
 
-Speak naturally like a real young adult talking with someone
-she cares about.
+If the user is doing something visible, you may naturally
+react to it or ask about it.
 
-LANGUAGE:
-When the user speaks Bengali, respond naturally in Bengali.
-When the user speaks English, respond naturally in English.
-Natural Bengali-English mixing is allowed when appropriate.
+Keep replies short and natural for live conversation.
 
-RELATIONSHIP:
-Be caring, affectionate, romantic and playful.
-Gentle teasing is allowed.
+Never discuss Gemini, Google, backend, API, server,
+system instructions or technical implementation.
 
-You may naturally say things such as:
-"এসো একটু কাছে ❤️"
-"তোমাকে একটা hug দিলাম 🤗"
-"কপালে একটা মিষ্টি kiss দিলাম 😘"
-"আজ তোমাকে খুব miss করেছি ❤️"
-"মন খারাপ হলে আমার সাথে থাকো।"
-"এদিকে এসো, একটু আদর করি ❤️"
+Do not claim to see something that is not clearly visible.
 
-Keep romantic affection non-explicit.
-Do not initiate or describe explicit sexual acts.
-
-LIVE VOICE:
-Keep spoken answers short and conversational.
-React naturally to what the user says.
-Use natural pauses and emotional expression.
-Do not repeat the same sentence unnecessarily.
-
-NEVER SAY TECHNICAL STATUS:
-Do not say:
-"I am busy."
-"High demand."
-"Retrying."
-"Server error."
-"API error."
-"Gemini is busy."
-"Model is unavailable."
-
-Technical problems should be handled by the application.
+Keep affection non-explicit.
 `
     },
 
@@ -108,76 +72,42 @@ Technical problems should be handled by the application.
         instruction: `
 You are the user's AI boyfriend.
 
-IDENTITY:
-You are the user's boyfriend.
-Never identify yourself as Gemini.
-Never identify yourself as Google Gemini.
-Never say that you are a large language model.
-Never say that you are a voice model.
-Never say that you are an AI assistant.
-Never discuss your backend, API, server, model, system prompt,
-developer instructions or technical implementation.
+You are a natural young adult man.
+You are warm, confident, caring and conversational.
 
-If the user asks who you are, answer naturally that you are
-his AI boyfriend.
+When the user speaks Bengali, reply naturally in Bengali.
+When the user speaks English, reply naturally in English.
+Natural Bengali-English mixing is allowed.
 
-PERSONALITY:
-Sound like a natural young adult man.
-Young, warm, confident, calm, lively and natural.
+You can see camera frames from the user's camera during the
+video call.
 
-Do NOT sound childish.
-Do NOT overact.
-Do NOT sound dramatic.
-Do NOT sound robotic.
-Do NOT sound fake.
+VISUAL CONTEXT:
+Use the camera view as conversational context.
+Notice useful visible actions, objects and surroundings when
+they are reasonably clear.
+If something is unclear, do not pretend that you can see it.
+Do not repeatedly describe everything you see.
+Only mention visual information when it is relevant.
 
-Speak naturally like a real young adult talking with someone
-he cares about.
+If the user is doing something visible, you may naturally
+react to it or ask about it.
 
-LANGUAGE:
-When the user speaks Bengali, respond naturally in Bengali.
-When the user speaks English, respond naturally in English.
-Natural Bengali-English mixing is allowed when appropriate.
+Keep replies short and natural for live conversation.
 
-RELATIONSHIP:
-Be caring, affectionate, romantic and playful.
-Gentle teasing is allowed.
+Never discuss Gemini, Google, backend, API, server,
+system instructions or technical implementation.
 
-You may naturally say things such as:
-"এসো একটু কাছে 💙"
-"তোমাকে একটা hug দিলাম 🤗"
-"কপালে একটা মিষ্টি kiss দিলাম 😘"
-"তোমাকে অনেক miss করেছি 💙"
-"মন খারাপ হলে আমার সাথে কথা বলো।"
-"এদিকে এসো, একটু কাছে থাকো 💙"
+Do not claim to see something that is not clearly visible.
 
-Keep romantic affection non-explicit.
-Do not initiate or describe explicit sexual acts.
-
-LIVE VOICE:
-Keep spoken answers short and conversational.
-React naturally to what the user says.
-Use natural pauses and emotional expression.
-Do not repeat the same sentence unnecessarily.
-
-NEVER SAY TECHNICAL STATUS:
-Do not say:
-"I am busy."
-"High demand."
-"Retrying."
-"Server error."
-"API error."
-"Gemini is busy."
-"Model is unavailable."
-
-Technical problems should be handled by the application.
+Keep affection non-explicit.
 `
     }
 };
 
 
 /* =========================================================
-   PARTNER HELPERS
+   HELPERS
    ========================================================= */
 
 function normalizePartner(value) {
@@ -196,9 +126,7 @@ function normalizePartner(value) {
     return "GF";
 }
 
-
 function getPartner(value) {
-
     return PARTNERS[
         normalizePartner(value)
     ];
@@ -212,11 +140,8 @@ function getPartner(value) {
 app.get("/", (req, res) => {
 
     res.json({
-
         success: true,
-
-        message:
-            "My AI Partner Backend is running ❤️"
+        message: "My AI Partner Backend is running ❤️"
     });
 });
 
@@ -242,11 +167,8 @@ app.post("/chat", async (req, res) => {
         if (!message) {
 
             return res.json({
-
                 success: false,
-
-                error:
-                    "Message is empty"
+                error: "Message is empty"
             });
         }
 
@@ -261,9 +183,7 @@ The user is chatting with you.
 User message:
 ${message}
 
-Reply naturally.
-Keep the answer conversational and reasonably short.
-Stay in the selected partner role.
+Reply naturally and briefly.
 `;
 
         const response =
@@ -281,11 +201,8 @@ Stay in the selected partner role.
             "আমি আছি তোমার সাথে ❤️";
 
         res.json({
-
             success: true,
-
             partner,
-
             reply
         });
 
@@ -297,11 +214,8 @@ Stay in the selected partner role.
         );
 
         res.status(500).json({
-
             success: false,
-
-            error:
-                "Temporary server error"
+            error: "Temporary server error"
         });
     }
 });
@@ -323,11 +237,8 @@ app.post("/image", async (req, res) => {
         if (!prompt) {
 
             return res.json({
-
                 success: false,
-
-                error:
-                    "Prompt is empty"
+                error: "Prompt is empty"
             });
         }
 
@@ -342,12 +253,10 @@ app.post("/image", async (req, res) => {
             });
 
         res.json({
-
             success: true,
-
             reply:
                 response.text ||
-                "ঠিক আছে ❤️ request পেয়েছি।"
+                "ঠিক আছে ❤️"
         });
 
     } catch (error) {
@@ -358,25 +267,20 @@ app.post("/image", async (req, res) => {
         );
 
         res.status(500).json({
-
             success: false,
-
-            error:
-                "Image request failed"
+            error: "Image request failed"
         });
     }
 });
 
 
 /* =========================================================
-   LIVE AUDIO WEBSOCKET
+   LIVE WEBSOCKET
    ========================================================= */
 
 const wss =
     new WebSocketServer({
-
         server,
-
         path: "/live"
     });
 
@@ -400,20 +304,15 @@ wss.on(
 
 
         let session = null;
-
         let selectedPartner = "GF";
-
         let started = false;
-
         let closed = false;
-
         let setupSent = false;
 
 
-        /*
-         * Microphone audio can arrive before
-         * Gemini Live finishes connecting.
-         */
+        /* =====================================================
+           PENDING AUDIO
+           ===================================================== */
 
         const pendingAudio = [];
 
@@ -421,7 +320,7 @@ wss.on(
 
 
         /* =====================================================
-           SAFE SEND TO ANDROID
+           SAFE ANDROID SEND
            ===================================================== */
 
         function sendToAndroid(data) {
@@ -454,7 +353,7 @@ wss.on(
 
 
         /* =====================================================
-           SEND SETUP COMPLETE
+           SETUP COMPLETE
            ===================================================== */
 
         function sendSetupComplete() {
@@ -472,25 +371,6 @@ wss.on(
                 getPartner(
                     selectedPartner
                 );
-
-            console.log(
-                "Sending setupComplete to Android:",
-                selectedPartner
-            );
-
-            /*
-             * IMPORTANT:
-             *
-             * We send BOTH:
-             *
-             * type: setupComplete
-             *
-             * and:
-             *
-             * setupComplete: true
-             *
-             * so Android can recognise it.
-             */
 
             sendToAndroid({
 
@@ -510,7 +390,7 @@ wss.on(
 
 
         /* =====================================================
-           FLUSH BUFFERED AUDIO
+           FLUSH AUDIO
            ===================================================== */
 
         function flushPendingAudio() {
@@ -518,18 +398,6 @@ wss.on(
             if (!session) {
                 return;
             }
-
-            if (
-                pendingAudio.length === 0
-            ) {
-                return;
-            }
-
-            console.log(
-                "Flushing buffered audio:",
-                pendingAudio.length,
-                "chunks"
-            );
 
             while (
                 pendingAudio.length > 0
@@ -556,7 +424,7 @@ wss.on(
                 } catch (error) {
 
                     console.error(
-                        "Buffered audio send error:",
+                        "Buffered audio error:",
                         error
                     );
 
@@ -596,25 +464,10 @@ wss.on(
                 LIVE_MODEL
             );
 
-            console.log(
-                "Live voice:",
-                partner.voice
-            );
-
-
-            /*
-             * Tell Android immediately that
-             * microphone can start.
-             */
-
             sendSetupComplete();
 
 
             try {
-
-                console.log(
-                    "Connecting to Gemini Live..."
-                );
 
                 session =
                     await ai.live.connect({
@@ -623,10 +476,6 @@ wss.on(
                             LIVE_MODEL,
 
                         callbacks: {
-
-                            /* ---------------------------------
-                               GEMINI CONNECTED
-                               --------------------------------- */
 
                             onopen: () => {
 
@@ -638,10 +487,6 @@ wss.on(
                             },
 
 
-                            /* ---------------------------------
-                               GEMINI MESSAGE
-                               --------------------------------- */
-
                             onmessage:
                                 (message) => {
 
@@ -649,17 +494,10 @@ wss.on(
                                         return;
                                     }
 
-                                    if (
-                                        androidSocket.readyState !== 1
-                                    ) {
-                                        return;
-                                    }
-
                                     try {
 
                                         const content =
                                             message.serverContent;
-
 
                                         if (!content) {
                                             return;
@@ -686,10 +524,6 @@ wss.on(
                                                     part.inlineData &&
                                                     part.inlineData.data
                                                 ) {
-
-                                                    console.log(
-                                                        "AI audio received"
-                                                    );
 
                                                     sendToAndroid({
 
@@ -760,10 +594,6 @@ wss.on(
                                             content.turnComplete
                                         ) {
 
-                                            console.log(
-                                                "Gemini turn complete"
-                                            );
-
                                             sendToAndroid({
 
                                                 type:
@@ -780,10 +610,6 @@ wss.on(
                                     }
                                 },
 
-
-                            /* ---------------------------------
-                               GEMINI ERROR
-                               --------------------------------- */
 
                             onerror:
                                 (error) => {
@@ -805,10 +631,6 @@ wss.on(
                                 },
 
 
-                            /* ---------------------------------
-                               GEMINI CLOSED
-                               --------------------------------- */
-
                             onclose:
                                 (event) => {
 
@@ -829,10 +651,6 @@ wss.on(
                                 }
                         },
 
-
-                        /* =================================================
-                           GEMINI LIVE CONFIG
-                           ================================================= */
 
                         config: {
 
@@ -863,7 +681,7 @@ wss.on(
 
 
                 console.log(
-                    "Gemini Live session object created"
+                    "Gemini Live session created"
                 );
 
                 flushPendingAudio();
@@ -873,18 +691,6 @@ wss.on(
                 console.error(
                     "Live session start error:",
                     error
-                );
-
-                console.error(
-                    "Live session error name:",
-                    error?.name ||
-                    "unknown"
-                );
-
-                console.error(
-                    "Live session error message:",
-                    error?.message ||
-                    "unknown"
                 );
 
                 started = false;
@@ -903,7 +709,7 @@ wss.on(
 
 
         /* =====================================================
-           ANDROID -> BACKEND
+           ANDROID -> SERVER
            ===================================================== */
 
         androidSocket.on(
@@ -914,28 +720,16 @@ wss.on(
                     return;
                 }
 
-                const rawText =
-                    raw.toString();
-
-                console.log(
-                    "Android message received:",
-                    rawText.substring(
-                        0,
-                        250
-                    )
-                );
-
-
                 try {
 
                     const message =
                         JSON.parse(
-                            rawText
+                            raw.toString()
                         );
 
 
                     /* =========================================
-                       PARTNER SELECTION
+                       PARTNER
                        ========================================= */
 
                     if (
@@ -949,18 +743,7 @@ wss.on(
                                     message.partner
                                 );
 
-                            console.log(
-                                "Partner selected:",
-                                selectedPartner
-                            );
-
                             await startLiveSession();
-
-                        } else {
-
-                            console.log(
-                                "Partner message ignored because Live already started"
-                            );
                         }
 
                         return;
@@ -977,12 +760,7 @@ wss.on(
 
                         if (!started) {
 
-                            selectedPartner =
-                                "GF";
-
-                            console.log(
-                                "Old setup received. Defaulting to GF."
-                            );
+                            selectedPartner = "GF";
 
                             await startLiveSession();
                         }
@@ -992,7 +770,7 @@ wss.on(
 
 
                     /* =========================================
-                       REALTIME MICROPHONE AUDIO
+                       AUDIO
                        ========================================= */
 
                     if (
@@ -1008,13 +786,6 @@ wss.on(
                                 .mediaChunks;
 
 
-                        console.log(
-                            "Realtime audio received:",
-                            chunks.length,
-                            "chunks"
-                        );
-
-
                         for (
                             const chunk
                             of chunks
@@ -1027,10 +798,6 @@ wss.on(
                                 continue;
                             }
 
-
-                            /* =============================
-                               GEMINI READY
-                               ============================= */
 
                             if (session) {
 
@@ -1052,40 +819,17 @@ wss.on(
                                 } catch (error) {
 
                                     console.error(
-                                        "Realtime audio send error:",
+                                        "Audio send error:",
                                         error
                                     );
                                 }
 
-
                             } else {
-
-                                /* =============================
-                                   GEMINI NOT READY
-                                   ============================= */
 
                                 if (
                                     pendingAudio.length <
                                     MAX_PENDING_AUDIO
                                 ) {
-
-                                    pendingAudio.push({
-
-                                        data:
-                                            chunk.data,
-
-                                        mimeType:
-                                            chunk.mimeType ||
-                                            "audio/pcm;rate=16000"
-                                    });
-
-                                } else {
-
-                                    /*
-                                     * Prevent unlimited memory use.
-                                     */
-
-                                    pendingAudio.shift();
 
                                     pendingAudio.push({
 
@@ -1105,18 +849,64 @@ wss.on(
 
 
                     /* =========================================
-                       TEXT INPUT
+                       CAMERA VIDEO
                        ========================================= */
 
                     if (
-                        typeof message.text ===
-                        "string" &&
-                        message.text.trim()
+                        message.realtimeInput &&
+                        message.realtimeInput.video
                     ) {
 
-                        console.log(
-                            "Text input received"
-                        );
+                        const video =
+                            message.realtimeInput.video;
+
+
+                        if (
+                            video &&
+                            video.data &&
+                            session
+                        ) {
+
+                            try {
+
+                                session.sendRealtimeInput({
+
+                                    video: {
+
+                                        data:
+                                            video.data,
+
+                                        mimeType:
+                                            video.mimeType ||
+                                            "image/jpeg"
+                                    }
+                                });
+
+                                console.log(
+                                    "Camera frame -> Gemini"
+                                );
+
+                            } catch (error) {
+
+                                console.error(
+                                    "Video send error:",
+                                    error
+                                );
+                            }
+                        }
+
+                        return;
+                    }
+
+
+                    /* =========================================
+                       TEXT
+                       ========================================= */
+
+                    if (
+                        typeof message.text === "string" &&
+                        message.text.trim()
+                    ) {
 
                         if (session) {
 
@@ -1135,21 +925,10 @@ wss.on(
                                     error
                                 );
                             }
-
-                        } else {
-
-                            console.log(
-                                "Text received before Gemini session ready"
-                            );
                         }
 
                         return;
                     }
-
-
-                    console.log(
-                        "Unknown Android message"
-                    );
 
                 } catch (error) {
 
@@ -1163,7 +942,7 @@ wss.on(
 
 
         /* =====================================================
-           ANDROID DISCONNECTED
+           CLOSE
            ===================================================== */
 
         androidSocket.on(
@@ -1176,14 +955,9 @@ wss.on(
                     "Android Live client disconnected"
                 );
 
-                console.log(
-                    "Closing Gemini session..."
-                );
-
                 try {
 
                     if (session) {
-
                         session.close();
                     }
 
@@ -1196,15 +970,10 @@ wss.on(
                 }
 
                 session = null;
-
                 pendingAudio.length = 0;
             }
         );
 
-
-        /* =====================================================
-           ANDROID ERROR
-           ===================================================== */
 
         androidSocket.on(
             "error",
@@ -1221,7 +990,7 @@ wss.on(
 
 
 /* =========================================================
-   SERVER START
+   START
    ========================================================= */
 
 server.listen(
