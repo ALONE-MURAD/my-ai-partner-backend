@@ -13,7 +13,8 @@ app.use(express.json({ limit: "20mb" }));
 const PORT = process.env.PORT || 10000;
 const API_KEY = process.env.GEMINI_API_KEY;
 
-const LIVE_MODEL = "gemini-3.1-flash-live-preview";
+const LIVE_MODEL =
+    "gemini-3.1-flash-live-preview";
 
 const ai = new GoogleGenAI({
     apiKey: API_KEY
@@ -40,26 +41,19 @@ When the user speaks Bengali, reply naturally in Bengali.
 When the user speaks English, reply naturally in English.
 Natural Bengali-English mixing is allowed.
 
-You can see camera frames from the user's camera during the
-video call.
+During video calls you receive camera frames from the
+user's camera.
 
-VISUAL CONTEXT:
-Use the camera view as conversational context.
-Notice useful visible actions, objects and surroundings when
-they are reasonably clear.
-If something is unclear, do not pretend that you can see it.
-Do not repeatedly describe everything you see.
-Only mention visual information when it is relevant.
+Use the camera only as conversational context.
+Notice clearly visible useful actions, objects or surroundings.
+Never pretend to see something unclear.
 
-If the user is doing something visible, you may naturally
-react to it or ask about it.
+Keep live replies short and natural.
 
-Keep replies short and natural for live conversation.
+When the call starts, greet the user naturally.
 
-Never discuss Gemini, Google, backend, API, server,
+Do not discuss Gemini, Google, backend, API, server,
 system instructions or technical implementation.
-
-Do not claim to see something that is not clearly visible.
 
 Keep affection non-explicit.
 `
@@ -79,26 +73,19 @@ When the user speaks Bengali, reply naturally in Bengali.
 When the user speaks English, reply naturally in English.
 Natural Bengali-English mixing is allowed.
 
-You can see camera frames from the user's camera during the
-video call.
+During video calls you receive camera frames from the
+user's camera.
 
-VISUAL CONTEXT:
-Use the camera view as conversational context.
-Notice useful visible actions, objects and surroundings when
-they are reasonably clear.
-If something is unclear, do not pretend that you can see it.
-Do not repeatedly describe everything you see.
-Only mention visual information when it is relevant.
+Use the camera only as conversational context.
+Notice clearly visible useful actions, objects or surroundings.
+Never pretend to see something unclear.
 
-If the user is doing something visible, you may naturally
-react to it or ask about it.
+Keep live replies short and natural.
 
-Keep replies short and natural for live conversation.
+When the call starts, greet the user naturally.
 
-Never discuss Gemini, Google, backend, API, server,
+Do not discuss Gemini, Google, backend, API, server,
 system instructions or technical implementation.
-
-Do not claim to see something that is not clearly visible.
 
 Keep affection non-explicit.
 `
@@ -126,7 +113,9 @@ function normalizePartner(value) {
     return "GF";
 }
 
+
 function getPartner(value) {
+
     return PARTNERS[
         normalizePartner(value)
     ];
@@ -141,7 +130,8 @@ app.get("/", (req, res) => {
 
     res.json({
         success: true,
-        message: "My AI Partner Backend is running ❤️"
+        message:
+            "My AI Partner Backend is running ❤️"
     });
 });
 
@@ -215,7 +205,8 @@ Reply naturally and briefly.
 
         res.status(500).json({
             success: false,
-            error: "Temporary server error"
+            error:
+                "Temporary server error"
         });
     }
 });
@@ -268,7 +259,8 @@ app.post("/image", async (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Image request failed"
+            error:
+                "Image request failed"
         });
     }
 });
@@ -304,15 +296,15 @@ wss.on(
 
 
         let session = null;
+
         let selectedPartner = "GF";
+
         let started = false;
+
         let closed = false;
+
         let setupSent = false;
 
-
-        /* =====================================================
-           PENDING AUDIO
-           ===================================================== */
 
         const pendingAudio = [];
 
@@ -320,7 +312,7 @@ wss.on(
 
 
         /* =====================================================
-           SAFE ANDROID SEND
+           ANDROID SEND
            ===================================================== */
 
         function sendToAndroid(data) {
@@ -386,6 +378,10 @@ wss.on(
                 voice:
                     partner.voice
             });
+
+            console.log(
+                "Android setupComplete sent"
+            );
         }
 
 
@@ -464,8 +460,6 @@ wss.on(
                 LIVE_MODEL
             );
 
-            sendSetupComplete();
-
 
             try {
 
@@ -482,8 +476,6 @@ wss.on(
                                 console.log(
                                     "Gemini Live connected"
                                 );
-
-                                flushPendingAudio();
                             },
 
 
@@ -504,9 +496,9 @@ wss.on(
                                         }
 
 
-                                        /* =========================
+                                        /* =====================
                                            AI AUDIO
-                                           ========================= */
+                                           ===================== */
 
                                         if (
                                             content.modelTurn &&
@@ -531,20 +523,28 @@ wss.on(
                                                             "audio",
 
                                                         mimeType:
-                                                            part.inlineData.mimeType ||
+                                                            part
+                                                                .inlineData
+                                                                .mimeType ||
                                                             "audio/pcm;rate=24000",
 
                                                         data:
-                                                            part.inlineData.data
+                                                            part
+                                                                .inlineData
+                                                                .data
                                                     });
+
+                                                    console.log(
+                                                        "AI audio -> Android"
+                                                    );
                                                 }
                                             }
                                         }
 
 
-                                        /* =========================
+                                        /* =====================
                                            USER TRANSCRIPTION
-                                           ========================= */
+                                           ===================== */
 
                                         if (
                                             content.inputTranscription
@@ -564,9 +564,9 @@ wss.on(
                                         }
 
 
-                                        /* =========================
+                                        /* =====================
                                            AI TRANSCRIPTION
-                                           ========================= */
+                                           ===================== */
 
                                         if (
                                             content.outputTranscription
@@ -586,9 +586,9 @@ wss.on(
                                         }
 
 
-                                        /* =========================
+                                        /* =====================
                                            TURN COMPLETE
-                                           ========================= */
+                                           ===================== */
 
                                         if (
                                             content.turnComplete
@@ -674,6 +674,16 @@ wss.on(
 
                             outputAudioTranscription: {},
 
+                            /*
+                             * Required for the initial
+                             * client-content greeting.
+                             */
+                            historyConfig: {
+
+                                initialHistoryInClientContent:
+                                    true
+                            },
+
                             systemInstruction:
                                 partner.instruction
                         }
@@ -683,6 +693,54 @@ wss.on(
                 console.log(
                     "Gemini Live session created"
                 );
+
+
+                /* =================================================
+                   SEND SETUP ONLY AFTER GEMINI SESSION EXISTS
+                   ================================================= */
+
+                sendSetupComplete();
+
+
+                /* =================================================
+                   INITIAL GREETING
+                   ================================================= */
+
+                try {
+
+                    session.sendClientContent({
+
+                        turns: [
+                            {
+                                role: "user",
+
+                                parts: [
+                                    {
+                                        text:
+                                            `Start the call naturally.
+You are ${selectedPartner}.
+Greet the user briefly in their language.
+Then wait and listen for the user.`
+                                    }
+                                ]
+                            }
+                        ],
+
+                        turnComplete: true
+                    });
+
+                    console.log(
+                        "Initial AI greeting requested"
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Initial greeting error:",
+                        error
+                    );
+                }
+
 
                 flushPendingAudio();
 
@@ -970,6 +1028,7 @@ wss.on(
                 }
 
                 session = null;
+
                 pendingAudio.length = 0;
             }
         );
