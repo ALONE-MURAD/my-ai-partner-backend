@@ -16,9 +16,50 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const LIVE_MODEL =
     "gemini-3.1-flash-live-preview";
 
+const CHAT_MODEL =
+    "gemini-3.5-flash";
+
+const IMAGE_MODEL =
+    "gemini-2.5-flash";
+
 const ai = new GoogleGenAI({
     apiKey: API_KEY
 });
+
+
+/* =========================================================
+   GITHUB AVATARS
+   ========================================================= */
+
+const GITHUB_RAW =
+    "https://raw.githubusercontent.com/ALONE-MURAD/my-ai-partner-backend/main";
+
+const GF_AVATARS = Array.from(
+    { length: 10 },
+    (_, i) =>
+        `${GITHUB_RAW}/avatar-gf/gf${i + 1}.jpg`
+);
+
+const BF_AVATARS = Array.from(
+    { length: 10 },
+    (_, i) =>
+        `${GITHUB_RAW}/avatar-bf/bf${i + 1}.jpg`
+);
+
+
+function randomAvatar(partner) {
+
+    const list =
+        partner === "BF"
+            ? BF_AVATARS
+            : GF_AVATARS;
+
+    return list[
+        Math.floor(
+            Math.random() * list.length
+        )
+    ];
+}
 
 
 /* =========================================================
@@ -179,11 +220,9 @@ Reply naturally and briefly.
         const response =
             await ai.models.generateContent({
 
-                model:
-                    "gemini-3.5-flash",
+                model: CHAT_MODEL,
 
-                contents:
-                    prompt
+                contents: prompt
             });
 
         const reply =
@@ -236,11 +275,9 @@ app.post("/image", async (req, res) => {
         const response =
             await ai.models.generateContent({
 
-                model:
-                    "gemini-2.5-flash",
+                model: IMAGE_MODEL,
 
-                contents:
-                    prompt
+                contents: prompt
             });
 
         res.json({
@@ -312,7 +349,7 @@ wss.on(
 
 
         /* =====================================================
-           ANDROID SEND
+           SEND TO ANDROID
            ===================================================== */
 
         function sendToAndroid(data) {
@@ -364,6 +401,11 @@ wss.on(
                     selectedPartner
                 );
 
+            const avatarUrl =
+                randomAvatar(
+                    selectedPartner
+                );
+
             sendToAndroid({
 
                 type:
@@ -376,11 +418,19 @@ wss.on(
                     selectedPartner,
 
                 voice:
-                    partner.voice
+                    partner.voice,
+
+                avatarUrl:
+                    avatarUrl
             });
 
             console.log(
                 "Android setupComplete sent"
+            );
+
+            console.log(
+                "Avatar:",
+                avatarUrl
             );
         }
 
@@ -543,7 +593,7 @@ wss.on(
 
 
                                         /* =====================
-                                           USER TRANSCRIPTION
+                                           INPUT TRANSCRIPTION
                                            ===================== */
 
                                         if (
@@ -565,7 +615,7 @@ wss.on(
 
 
                                         /* =====================
-                                           AI TRANSCRIPTION
+                                           OUTPUT TRANSCRIPTION
                                            ===================== */
 
                                         if (
@@ -674,10 +724,6 @@ wss.on(
 
                             outputAudioTranscription: {},
 
-                            /*
-                             * Required for the initial
-                             * client-content greeting.
-                             */
                             historyConfig: {
 
                                 initialHistoryInClientContent:
@@ -695,17 +741,16 @@ wss.on(
                 );
 
 
-                /* =================================================
-                   SEND SETUP ONLY AFTER GEMINI SESSION EXISTS
-                   ================================================= */
-
+                /*
+                 * Send Android setup only after
+                 * Gemini session exists.
+                 */
                 sendSetupComplete();
 
 
-                /* =================================================
-                   INITIAL GREETING
-                   ================================================= */
-
+                /*
+                 * Initial greeting.
+                 */
                 try {
 
                     session.sendClientContent({
@@ -752,6 +797,7 @@ Then wait and listen for the user.`
                 );
 
                 started = false;
+                session = null;
 
                 sendToAndroid({
 
@@ -818,7 +864,8 @@ Then wait and listen for the user.`
 
                         if (!started) {
 
-                            selectedPartner = "GF";
+                            selectedPartner =
+                                "GF";
 
                             await startLiveSession();
                         }
@@ -1049,7 +1096,7 @@ Then wait and listen for the user.`
 
 
 /* =========================================================
-   START
+   START SERVER
    ========================================================= */
 
 server.listen(
