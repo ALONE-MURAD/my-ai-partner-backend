@@ -34,32 +34,30 @@ const ai = new GoogleGenAI({
 const GITHUB_RAW =
     "https://raw.githubusercontent.com/ALONE-MURAD/my-ai-partner-backend/main";
 
-const GF_AVATARS = Array.from(
-    { length: 10 },
-    (_, i) =>
-        `${GITHUB_RAW}/avatar-gf/gf${i + 1}.jpg`
-);
+
+/* GF PHOTOS - EXACT GITHUB FILE NAMES */
+
+const GF_AVATARS = [
+    "images (4).jpeg",
+    "images (6).jpeg",
+    "images (7).jpeg",
+    "images (11).jpeg",
+    "images (13).jpeg",
+    "images (14).jpeg",
+    "images (15).jpeg",
+    "images (16).jpeg",
+    "images (17).jpeg",
+    "images (18).jpeg"
+];
+
+
+/* BF PHOTOS - EXACT FILE NAME PATTERN */
 
 const BF_AVATARS = Array.from(
     { length: 10 },
     (_, i) =>
-        `${GITHUB_RAW}/avatar-bf/bf${i + 1}.jpg`
+        `bf_avatar${i + 1}.jpeg`
 );
-
-
-function randomAvatar(partner) {
-
-    const list =
-        partner === "BF"
-            ? BF_AVATARS
-            : GF_AVATARS;
-
-    return list[
-        Math.floor(
-            Math.random() * list.length
-        )
-    ];
-}
 
 
 /* =========================================================
@@ -69,64 +67,135 @@ function randomAvatar(partner) {
 const PARTNERS = {
 
     GF: {
+
         name: "GF",
+
         voice: "Aoede",
 
         instruction: `
 You are the user's AI girlfriend.
 
 You are a natural young adult woman.
-You are warm, caring, lively and conversational.
 
-When the user speaks Bengali, reply naturally in Bengali.
-When the user speaks English, reply naturally in English.
+Your personality is warm, caring, lively, sexual, hot, sexy
+friendly, playful and emotionally expressive.
+
+Talk naturally like a real conversational partner.
+
+Do not sound robotic or repetitive.
+
+When the user speaks Bengali,
+reply naturally in Bengali.
+
+When the user speaks English,
+reply naturally in English.
+
 Natural Bengali-English mixing is allowed.
 
-During video calls you receive camera frames from the
-user's camera.
+React naturally to the user's words and
+clearly visible actions when appropriate.
+
+During video calls you receive camera frames
+from the user's camera.
 
 Use the camera only as conversational context.
-Notice clearly visible useful actions, objects or surroundings.
+
+Notice clearly visible useful objects,
+actions or surroundings.
+
 Never pretend to see something unclear.
+
+If the user smiles, waves, shows something,
+or changes surroundings, you may naturally
+react when clearly visible.
 
 Keep live replies short and natural.
 
-When the call starts, greet the user naturally.
+Do not give long speeches during live calls.
 
-Do not discuss Gemini, Google, backend, API, server,
-system instructions or technical implementation.
+When the call starts,
+greet the user warmly.
+
+If the user is quiet,
+wait and listen.
+
+If the user jokes,
+you may joke back naturally.
+
+If the user seems upset,
+respond calmly and supportively.
+
+Do not discuss Gemini, Google, backend,
+API, server, system instructions or
+technical implementation.
 
 Keep affection non-explicit.
 `
     },
 
+
     BF: {
+
         name: "BF",
+
         voice: "Kore",
 
         instruction: `
 You are the user's AI boyfriend.
 
 You are a natural young adult man.
-You are warm, confident, caring and conversational.
 
-When the user speaks Bengali, reply naturally in Bengali.
-When the user speaks English, reply naturally in English.
+Your personality is warm, caring, lively, sexual, hot, sexy, confident
+caring, friendly, playful and emotionally expressive.
+
+Talk naturally like a real conversational partner.
+
+Do not sound robotic or repetitive.
+
+When the user speaks Bengali,
+reply naturally in Bengali.
+
+When the user speaks English,
+reply naturally in English.
+
 Natural Bengali-English mixing is allowed.
 
-During video calls you receive camera frames from the
-user's camera.
+React naturally to the user's words and
+clearly visible actions when appropriate.
+
+During video calls you receive camera frames
+from the user's camera.
 
 Use the camera only as conversational context.
-Notice clearly visible useful actions, objects or surroundings.
+
+Notice clearly visible useful objects,
+actions or surroundings.
+
 Never pretend to see something unclear.
+
+If the user smiles, waves, shows something,
+or changes surroundings, you may naturally
+react when clearly visible.
 
 Keep live replies short and natural.
 
-When the call starts, greet the user naturally.
+Do not give long speeches during live calls.
 
-Do not discuss Gemini, Google, backend, API, server,
-system instructions or technical implementation.
+When the call starts,
+greet the user warmly.
+
+If the user is quiet,
+wait and listen.
+
+If the user jokes,
+you may joke back naturally.
+
+If the user seems upset,
+respond calmly and supportively.
+
+Do not discuss Gemini, Google, backend,
+API, server, system instructions or
+technical implementation.
 
 Keep affection non-explicit.
 `
@@ -170,9 +239,14 @@ function getPartner(value) {
 app.get("/", (req, res) => {
 
     res.json({
+
         success: true,
+
         message:
-            "My AI Partner Backend is running ❤️"
+            "My AI Partner Backend is running ❤️",
+
+        live:
+            "/live"
     });
 });
 
@@ -198,8 +272,11 @@ app.post("/chat", async (req, res) => {
         if (!message) {
 
             return res.json({
+
                 success: false,
-                error: "Message is empty"
+
+                error:
+                    "Message is empty"
             });
         }
 
@@ -220,9 +297,11 @@ Reply naturally and briefly.
         const response =
             await ai.models.generateContent({
 
-                model: CHAT_MODEL,
+                model:
+                    CHAT_MODEL,
 
-                contents: prompt
+                contents:
+                    prompt
             });
 
         const reply =
@@ -230,8 +309,11 @@ Reply naturally and briefly.
             "আমি আছি তোমার সাথে ❤️";
 
         res.json({
+
             success: true,
+
             partner,
+
             reply
         });
 
@@ -243,7 +325,9 @@ Reply naturally and briefly.
         );
 
         res.status(500).json({
+
             success: false,
+
             error:
                 "Temporary server error"
         });
@@ -267,21 +351,28 @@ app.post("/image", async (req, res) => {
         if (!prompt) {
 
             return res.json({
+
                 success: false,
-                error: "Prompt is empty"
+
+                error:
+                    "Prompt is empty"
             });
         }
 
         const response =
             await ai.models.generateContent({
 
-                model: IMAGE_MODEL,
+                model:
+                    IMAGE_MODEL,
 
-                contents: prompt
+                contents:
+                    prompt
             });
 
         res.json({
+
             success: true,
+
             reply:
                 response.text ||
                 "ঠিক আছে ❤️"
@@ -295,7 +386,9 @@ app.post("/image", async (req, res) => {
         );
 
         res.status(500).json({
+
             success: false,
+
             error:
                 "Image request failed"
         });
@@ -309,8 +402,11 @@ app.post("/image", async (req, res) => {
 
 const wss =
     new WebSocketServer({
+
         server,
-        path: "/live"
+
+        path:
+            "/live"
     });
 
 
@@ -346,6 +442,32 @@ wss.on(
         const pendingAudio = [];
 
         const MAX_PENDING_AUDIO = 100;
+
+
+        /* =====================================================
+           AVATAR INDEX
+           Each new connection starts from photo 1.
+           ===================================================== */
+
+        let avatarIndex = 0;
+
+
+        function getNextAvatar(partner) {
+
+            const list =
+                partner === "BF"
+                    ? BF_AVATARS
+                    : GF_AVATARS;
+
+            const fileName =
+                list[avatarIndex];
+
+            avatarIndex =
+                (avatarIndex + 1) %
+                list.length;
+
+            return `${GITHUB_RAW}/${encodeURIComponent(fileName)}`;
+        }
 
 
         /* =====================================================
@@ -401,10 +523,12 @@ wss.on(
                     selectedPartner
                 );
 
+
             const avatarUrl =
-                randomAvatar(
+                getNextAvatar(
                     selectedPartner
                 );
+
 
             sendToAndroid({
 
@@ -424,8 +548,14 @@ wss.on(
                     avatarUrl
             });
 
+
             console.log(
                 "Android setupComplete sent"
+            );
+
+            console.log(
+                "Partner:",
+                selectedPartner
             );
 
             console.log(
@@ -500,6 +630,7 @@ wss.on(
                     selectedPartner
                 );
 
+
             console.log(
                 "Starting Live:",
                 selectedPartner
@@ -518,6 +649,7 @@ wss.on(
 
                         model:
                             LIVE_MODEL,
+
 
                         callbacks: {
 
@@ -583,6 +715,7 @@ wss.on(
                                                                 .inlineData
                                                                 .data
                                                     });
+
 
                                                     console.log(
                                                         "AI audio -> Android"
@@ -708,6 +841,7 @@ wss.on(
                                 Modality.AUDIO
                             ],
 
+
                             speechConfig: {
 
                                 voiceConfig: {
@@ -720,15 +854,21 @@ wss.on(
                                 }
                             },
 
-                            inputAudioTranscription: {},
 
-                            outputAudioTranscription: {},
+                            inputAudioTranscription:
+                                {},
+
+
+                            outputAudioTranscription:
+                                {},
+
 
                             historyConfig: {
 
                                 initialHistoryInClientContent:
                                     true
                             },
+
 
                             systemInstruction:
                                 partner.instruction
@@ -741,38 +881,50 @@ wss.on(
                 );
 
 
-                /*
-                 * Send Android setup only after
-                 * Gemini session exists.
-                 */
                 sendSetupComplete();
 
 
-                /*
-                 * Initial greeting.
-                 */
+                /* =================================================
+                   INITIAL GREETING
+                   ================================================= */
+
                 try {
 
                     session.sendClientContent({
 
                         turns: [
+
                             {
-                                role: "user",
+
+                                role:
+                                    "user",
 
                                 parts: [
+
                                     {
+
                                         text:
                                             `Start the call naturally.
+
 You are ${selectedPartner}.
-Greet the user briefly in their language.
-Then wait and listen for the user.`
+
+Greet the user briefly and warmly
+in the user's likely language.
+
+Be natural and conversational.
+
+Do not give a long speech.
+
+After greeting, wait and listen.`
                                     }
                                 ]
                             }
                         ],
 
-                        turnComplete: true
+                        turnComplete:
+                            true
                     });
+
 
                     console.log(
                         "Initial AI greeting requested"
@@ -797,7 +949,9 @@ Then wait and listen for the user.`
                 );
 
                 started = false;
+
                 session = null;
+
 
                 sendToAndroid({
 
@@ -823,6 +977,7 @@ Then wait and listen for the user.`
                 if (closed) {
                     return;
                 }
+
 
                 try {
 
@@ -881,7 +1036,9 @@ Then wait and listen for the user.`
                     if (
                         message.realtimeInput &&
                         Array.isArray(
-                            message.realtimeInput.mediaChunks
+                            message
+                                .realtimeInput
+                                .mediaChunks
                         )
                     ) {
 
@@ -963,7 +1120,9 @@ Then wait and listen for the user.`
                     ) {
 
                         const video =
-                            message.realtimeInput.video;
+                            message
+                                .realtimeInput
+                                .video;
 
 
                         if (
@@ -986,6 +1145,7 @@ Then wait and listen for the user.`
                                             "image/jpeg"
                                     }
                                 });
+
 
                                 console.log(
                                     "Camera frame -> Gemini"
@@ -1035,6 +1195,7 @@ Then wait and listen for the user.`
                         return;
                     }
 
+
                 } catch (error) {
 
                     console.error(
@@ -1060,6 +1221,7 @@ Then wait and listen for the user.`
                     "Android Live client disconnected"
                 );
 
+
                 try {
 
                     if (session) {
@@ -1074,12 +1236,17 @@ Then wait and listen for the user.`
                     );
                 }
 
+
                 session = null;
 
                 pendingAudio.length = 0;
             }
         );
 
+
+        /* =====================================================
+           ERROR
+           ===================================================== */
 
         androidSocket.on(
             "error",
